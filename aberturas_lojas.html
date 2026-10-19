@@ -1,0 +1,619 @@
+<title>Aberturas de Lojas dSeries</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: ferramenta de operação em 3 passos reais (carregar XML → indicar lojas → gerar ZIP), coluna dupla em desktop, uma coluna no telemóvel */
+:root {
+  --bg: #f3f5f6; --surface: #ffffff; --fg: #18212b; --muted: #5a6673; --line: #d7dde2;
+  --accent: #0d6b73; --accent-fg: #ffffff; --accent-soft: #e2eff0;
+  --ok: #1f7a3d; --warn: #9a5800; --bad: #b3261e; --chip: #e9eef1;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151a; --surface: #172029; --fg: #e3e9ee; --muted: #9aa6b2; --line: #2a3541;
+  --accent: #52b5bd; --accent-fg: #0a1418; --accent-soft: #19333a;
+  --ok: #6cc58a; --warn: #e2a54b; --bad: #f08b80; --chip: #1f2b35; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151a; --surface: #172029; --fg: #e3e9ee; --muted: #9aa6b2; --line: #2a3541;
+  --accent: #52b5bd; --accent-fg: #0a1418; --accent-soft: #19333a;
+  --ok: #6cc58a; --warn: #e2a54b; --bad: #f08b80; --chip: #1f2b35; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 20px; }
+header { display: grid; gap: 4px; }
+h1 { font-size: 1.6rem; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.mono { font-family: var(--font-mono); font-size: 0.86em; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.step { display: flex; align-items: baseline; gap: 10px; }
+.step b { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); letter-spacing: 0.06em; }
+h2 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+.hint { color: var(--muted); font-size: 0.86rem; margin: 0; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 18px; text-align: center; display: grid; gap: 8px; justify-items: center; transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.files { display: grid; gap: 10px; }
+.ins-group { display: grid; gap: 6px; }
+.ins-group h3 { margin: 0; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--chip); border-radius: 4px; padding: 2px 8px; font-family: var(--font-mono); font-size: 0.76rem; }
+.chip.mod { outline: 1px solid var(--ok); }
+
+form { display: grid; gap: 14px; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+label.f { display: grid; gap: 4px; font-size: 0.86rem; font-weight: 500; }
+input[type=text], input[type=date], select {
+  font: inherit; font-size: 0.95rem; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--bg); color: var(--fg); width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.derived { font-size: 0.82rem; color: var(--ok); min-height: 1.2em; }
+fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 12px; margin: 0; min-width: 0; }
+legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
+.flows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 14px; }
+.flows label > span { min-width: 0; overflow-wrap: anywhere; }
+.flows label { display: flex; gap: 7px; align-items: flex-start; font-size: 0.86rem; }
+.flows label .k { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; }
+.flows label .miss { color: var(--bad); font-size: 0.76rem; }
+.flowcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+@media (max-width: 760px) { .flowcols { grid-template-columns: minmax(0, 1fr); } }
+
+button { font: inherit; font-size: 0.92rem; font-weight: 500; border-radius: 4px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.actions .spacer { flex: 1; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.empty { color: var(--muted); text-align: center; padding: 18px; }
+td .x { border: 0; background: none; color: var(--bad); padding: 0 4px; }
+
+.msg { padding: 9px 12px; border-radius: 4px; font-size: 0.88rem; border-left: 3px solid var(--muted); background: var(--bg); }
+.msg.err { border-color: var(--bad); color: var(--bad); }
+.msg.ok { border-color: var(--ok); }
+.msg.warn { border-color: var(--warn); }
+pre.log { margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; overflow-x: auto; white-space: pre; max-height: 360px; overflow-y: auto; }
+.log .add { color: var(--ok); } .log .skip { color: var(--muted); } .log .hd { font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Aberturas de Lojas dSeries</h1>
+    <p>Acrescenta as lojas novas nas aplicações MFT exportadas do dSeries e devolve os XML prontos a importar, num ZIP. Os ficheiros são processados neste browser e não são enviados para lado nenhum. Os XML originais ficam intactos no seu computador e servem de backup.</p>
+  </header>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="s1">
+      <div class="step"><b>PASSO 1</b><h2 id="s1">XML exportados do dSeries</h2></div>
+      <p class="hint">Exporte do repositório as aplicações da insígnia (ex.: <span class="mono">MFT_RMSMCH_FO_ART_CBD</span>) e carregue aqui os <span class="mono">.xml</span>. Pode carregar várias insígnias de uma vez.</p>
+      <div class="drop" id="drop">
+        <span>Arraste os ficheiros XML para aqui</span>
+        <span class="hint">ou</span>
+        <label class="hint" for="fileInput"><button type="button" id="pick">Escolher ficheiros…</button></label>
+        <input type="file" id="fileInput" accept=".xml" multiple hidden>
+      </div>
+      <div class="files" id="files"></div>
+      <div class="actions"><button type="button" id="clearFiles" hidden>Remover ficheiros carregados</button></div>
+    </section>
+
+    <section class="panel" aria-labelledby="s2">
+      <div class="step"><b>PASSO 2</b><h2 id="s2">Lojas a acrescentar</h2></div>
+      <form id="form" novalidate>
+        <div class="row">
+          <label class="f" for="lojas">N.º loja(s)
+            <input type="text" id="lojas" placeholder="ex.: 7945  ou  7945, 8792" autocomplete="off" inputmode="numeric">
+          </label>
+          <label class="f" for="insignia">Insígnia
+            <select id="insignia"></select>
+          </label>
+        </div>
+        <div class="row">
+          <label class="f" for="dart">Início ART / INGREDIENTES / IMAGENS
+            <input type="text" id="dart" placeholder="dd/mm/aaaa" inputmode="numeric" autocomplete="off">
+            <span class="derived hint">data do email, aplicada tal e qual</span>
+          </label>
+          <label class="f" for="dvnd">1.º dia de vendas (do email)
+            <input type="text" id="dvnd" placeholder="dd/mm/aaaa" inputmode="numeric" autocomplete="off">
+            <span class="derived" id="dvndOut"></span>
+          </label>
+        </div>
+        <div class="flowcols">
+          <fieldset><legend>Com a data de artigos</legend><div class="flows" id="flowsArt"></div></fieldset>
+          <fieldset><legend>Com a data de vendas (+1 dia)</legend><div class="flows" id="flowsVnd"></div></fieldset>
+        </div>
+        <div class="actions">
+          <span class="hint" id="xmlHint"></span><span class="spacer"></span>
+          <button type="submit" class="primary">Adicionar à lista</button>
+        </div>
+        <div id="formMsg" hidden></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="s3">
+    <div class="step"><b>PASSO 3</b><h2 id="s3">Rever e gerar</h2></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Loja</th><th>Insígnia</th><th>Início artigos</th><th>1.º dia vendas</th><th>Vendas arrancam</th><th>Fluxos</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button type="button" id="clearList">Limpar lista</button>
+      <span class="spacer"></span>
+      <button type="button" id="preview">Pré-visualizar</button>
+      <button type="button" class="primary" id="generate">Gerar ZIP com os XML</button>
+    </div>
+    <div id="runMsg" hidden></div>
+    <pre class="log" id="log" hidden></pre>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// CORE-START  (mesma lógica de aberturas_lojas.py)
+const ARTIGOS = "artigos", VENDAS = "vendas";
+const DIAS_APOS_1O_DIA_VENDAS = 1;
+const FLUXOS = [
+  ["ART",          "MFT_RMSMCH_FO_ART",          "Artigos, Clientes, Cartões, Promoções e Vales", ARTIGOS],
+  ["INGREDIENTES", "MFT_RMSMCH_FO_INGREDIENTES", "Ingredientes",                                  ARTIGOS],
+  ["IMAGES",       "MFT_RMSMCH_FO_IMAGES",       "Registo artigos a peso no POS (imagens)",       ARTIGOS],
+  ["FACTURAS",     "MFT_FO_CTT_MCHFACTURAS",     "Facturas",                                      VENDAS],
+  ["FOLHASCAIXA",  "MFT_FO_IXOS_FOLHASCAIXA",    "Folha de Caixa",                                VENDAS],
+  ["TROCOS",       "MFT_FO_FTPPUBLICO_TROCOS",   "Pedido de Troco",                               VENDAS],
+  ["MPD",          "MFT_GAMFT_FO_MPD",           "Promoções Segmentadas - PUT",                   VENDAS],
+  ["ROLOS",        "MFT_FO_IXOS_ROLOS",          "Rolos de Controlo",                             VENDAS],
+  ["SAFT",         "MFT_FO_SAFT_VND",            "SAF-T Unifo SAFTC",                             VENDAS],
+  ["TLOG",         "MFT_FO_DW_TLOG",             "Tlog, Vales, Cheques",                          VENDAS],
+  ["COOL_VALES",   "MFT_FO_COOL_VALES",          "Vales (COOL)",                                  VENDAS],
+  ["VND",          "MFT_FO_RMSMCH_VND",          "Vendas",                                        VENDAS],
+  ["MAPASIVA",     "MFT_FO_SAFT_MAPASIVA",       "Mapas IVA from UniFO to SAFT",                  VENDAS],
+];
+const FLUXO = Object.fromEntries(FLUXOS.map(f => [f[0], f]));
+const TODOS = FLUXOS.map(f => f[0]);
+const STANDARD = TODOS.filter(f => f !== "MAPASIVA");
+const SEM_ING_IMG = STANDARD.filter(f => f !== "INGREDIENTES" && f !== "IMAGES");
+// Insígnia = sufixo das aplicações no dSeries. Fluxos pré-selecionados tirados dos emails de abertura.
+const INSIGNIAS = {
+  CBD: STANDARD,
+  MDL: STANDARD,
+  MEUSUPER: ["ART", "INGREDIENTES", "MPD", "SAFT", "TLOG", "COOL_VALES", "VND", "MAPASIVA"],
+  ZU: SEM_ING_IMG,
+  WELLS: SEM_ING_IMG.filter(f => f !== "SAFT"),
+  WRT: ["ART", "FOLHASCAIXA", "TROCOS", "ROLOS", "SAFT", "TLOG", "COOL_VALES", "VND"],
+};
+
+const BLOCO_RE = () => /<(\w+) name="([^"]+)" qualifier="([^"]+)">[\s\S]*?<\/\1>/g;
+const JOB_LOJA_RE = /^(.*?_)(\d{5})$/;
+const SUCC_RE = () => /<successorname>\s*([^<]+?)\s*<\/successorname>/g;
+const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const pad5 = n => String(n).padStart(5, "0");
+
+class AppXML {
+  constructor(nome, xml) {
+    this.nome = nome; this.xml = xml;
+    const m = xml.match(/<appl\b[^>]*\bname="([^"]+)"/);
+    if (!m) throw new Error(`não encontrei <appl name=...> em ${nome}`);
+    this.appl = m[1];
+    const r = xml.match(/<schedules><run><schedule>(\w+)<\/schedule><\/run><norun>/);
+    this.runWord = r ? r[1] : "daily";
+  }
+  blocos() {
+    const out = [];
+    for (const m of this.xml.matchAll(BLOCO_RE())) out.push({ tipo: m[1], nome: m[2], ini: m.index, fim: m.index + m[0].length });
+    return out;
+  }
+  bloco(nome) {
+    const m = new RegExp(`<(\\w+) name="${esc(nome)}" qualifier="[^"]+">[\\s\\S]*?</\\1>`).exec(this.xml);
+    if (!m) throw new Error(`bloco '${nome}' não encontrado em ${this.appl}`);
+    return { ini: m.index, fim: m.index + m[0].length, texto: m[0] };
+  }
+  jobsPorLoja() {
+    const lojas = new Map();
+    for (const b of this.blocos()) {
+      if (b.tipo !== "unix_job") continue;
+      const m = JOB_LOJA_RE.exec(b.nome);
+      if (!m) continue;
+      const l = parseInt(m[2], 10);
+      if (!lojas.has(l)) lojas.set(l, []);
+      lojas.get(l).push({ pref: m[1], ...b });
+    }
+    return lojas;
+  }
+  // Molde = loja mais recente (última no ficheiro) com a assinatura de ligações mais comum.
+  escolherMolde() {
+    const lojas = this.jobsPorLoja();
+    if (!lojas.size) throw new Error(`${this.appl} não tem jobs de loja para servir de molde`);
+    const refs = new Map();
+    for (const b of this.blocos())
+      for (const s of this.xml.slice(b.ini, b.fim).matchAll(SUCC_RE())) {
+        const job = s[1].replace(/\.[^.]*$/, "");
+        if (!refs.has(job)) refs.set(job, []);
+        refs.get(job).push(b.nome);
+      }
+    const ass = new Map(), cont = new Map();
+    for (const [l, jobs] of lojas) {
+      const proprios = new Set(jobs.map(j => j.nome));
+      const ext = [];
+      for (const j of jobs) for (const r of (refs.get(j.nome) || [])) if (!proprios.has(r)) ext.push([j.pref, r]);
+      ext.sort((a, b) => (a[0] + "\u0000" + a[1]).localeCompare(b[0] + "\u0000" + b[1]));
+      const key = JSON.stringify([jobs.map(j => j.pref).sort(), ext]);
+      ass.set(l, key); cont.set(key, (cont.get(key) || 0) + 1);
+    }
+    let comum = null, max = -1;
+    for (const [k, c] of cont) if (c > max) { comum = k; max = c; }
+    const externas = JSON.parse(comum)[1];
+    if (!externas.length) throw new Error(`${this.appl}: as lojas não são referenciadas por nenhum link`);
+    let molde = null, pos = -1;
+    for (const [l, jobs] of lojas) if (ass.get(l) === comum) {
+      const p = Math.max(...jobs.map(j => j.fim));
+      if (p > pos) { pos = p; molde = l; }
+    }
+    return { molde, jobs: lojas.get(molde), externas };
+  }
+}
+
+function trocarLoja(bloco, antiga, nova) {
+  const a5 = pad5(antiga), n5 = pad5(nova);
+  bloco = bloco.replace(new RegExp(`_${a5}(?=[".<\\s])`, "g"), "_" + n5);
+  const num = new RegExp(`(?<!\\d)0*${antiga}(?!\\d)`, "g");
+  bloco = bloco.replace(/(<args>)([\s\S]*?)(<\/args>)/g, (_, a, b, c) => a + b.replace(num, String(nova)) + c);
+  if (bloco.includes(a5) || new RegExp(`<args>[^<]*(?<!\\d)0*${antiga}(?!\\d)`).test(bloco))
+    throw new Error(`ficou uma referência à loja molde ${antiga} no job clonado`);
+  return bloco;
+}
+
+function aplicarData(bloco, data, runWord) {
+  bloco = bloco.replace(/\s*<norun>[\s\S]*?<\/norun>/g, "");
+  if (!data) return bloco;
+  const norun = `<norun><schedule>until ${fmtNorun(data)}</schedule></norun>`;
+  if (bloco.includes("</schedules>")) return bloco.replace("</schedules>", () => norun + "</schedules>");
+  const sched = `<schedules><run><schedule>${runWord}</schedule></run>${norun}</schedules>`;
+  const i = bloco.indexOf("</comment>");
+  const pos = i >= 0 ? i + "</comment>".length : bloco.indexOf(">") + 1;
+  return bloco.slice(0, pos) + sched + bloco.slice(pos);
+}
+
+function acrescentarDependencia(app, nomeBloco, jobMolde, jobNovo) {
+  const b = app.bloco(nomeBloco);
+  const rc = new RegExp(`<relcondition>\\s*<successorname>\\s*${esc(jobMolde)}\\.[^<]*</successorname>[\\s\\S]*?</relcondition>`).exec(b.texto);
+  if (!rc) throw new Error(`dependência para ${jobMolde} não encontrada em ${nomeBloco}`);
+  const novoRc = rc[0].replace(jobMolde + ".", () => jobNovo + ".");
+  const fim = b.texto.indexOf("</relconditionlist>", rc.index + rc[0].length);
+  const texto = b.texto.slice(0, fim) + novoRc + b.texto.slice(fim);
+  app.xml = app.xml.slice(0, b.ini) + texto + app.xml.slice(b.fim);
+}
+
+function adicionarLojas(app, lojasDatas) {
+  const { molde, jobs, externas } = app.escolherMolde();
+  const moldes = jobs.map(j => ({ pref: j.pref, texto: app.xml.slice(j.ini, j.fim) }));
+  const existentes = new Set(app.jobsPorLoja().keys());
+  const linhas = [], novas = [];
+  linhas.push({ t: "hd", s: `${app.appl}  (molde: loja ${molde} | jobs: ${moldes.map(m => m.pref + "x").join(", ")} | ligado a: ${[...new Set(externas.map(e => e[1]))].sort().join(", ")})` });
+  for (const [loja, data] of lojasDatas) {
+    if (existentes.has(loja)) { linhas.push({ t: "skip", s: `   = loja ${loja} já existe -- ignorada` }); continue; }
+    const blocos = moldes.map(m => aplicarData(trocarLoja(m.texto, molde, loja), data, app.runWord));
+    const fim = app.xml.lastIndexOf("</appl>");
+    app.xml = app.xml.slice(0, fim) + blocos.join("") + app.xml.slice(fim);
+    for (const [pref, ref] of externas) acrescentarDependencia(app, ref, pref + pad5(molde), pref + pad5(loja));
+    existentes.add(loja); novas.push(loja);
+    linhas.push({ t: "add", s: `   + loja ${loja}  ${data ? "do not run until " + fmtNorun(data) : "sem data"}  [${moldes.map(m => m.pref + pad5(loja)).join(", ")}]` });
+  }
+  if (novas.length) validar(app, novas, externas);
+  return { linhas, novas };
+}
+
+function validar(app, novas, externas) {
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(app.xml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) throw new Error(`${app.appl} ficou com XML inválido`);
+  }
+  const nomes = new Map();
+  for (const b of app.blocos()) nomes.set(b.nome, (nomes.get(b.nome) || 0) + 1);
+  for (const loja of novas) for (const [pref, ref] of externas) {
+    const job = pref + pad5(loja);
+    if (nomes.get(job) !== 1) throw new Error(`${app.appl}: job ${job} aparece ${nomes.get(job) || 0} vezes`);
+    if (!app.bloco(ref).texto.includes(job + ".")) throw new Error(`${app.appl}: ${job} não ficou ligado a ${ref}`);
+  }
+}
+
+// datas: objetos Date em UTC (sem horas)
+const parseISO = s => { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const two = n => String(n).padStart(2, "0");
+const fmtNorun = d => `${d.getUTCFullYear()}/${two(d.getUTCMonth() + 1)}/${two(d.getUTCDate())}`;
+const fmtPT = d => d ? `${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}` : "–";
+const norunVendas = d => d ? new Date(d.getTime() + DIAS_APOS_1O_DIA_VENDAS * 86400000) : null;
+const nomeXml = (chave, ins) => `${FLUXO[chave][1]}_${ins}.xml`;
+
+// ficheiros: Map nomeEmMinúsculas -> {nome, xml}
+function processar(pedidos, ficheiros) {
+  const porXml = new Map();
+  for (const ins of Object.keys(INSIGNIAS)) for (const k of TODOS) for (const p of pedidos) {
+    if (p.insignia !== ins || !p.fluxos.includes(k)) continue;
+    const data = FLUXO[k][3] === ARTIGOS ? p.dataArt : norunVendas(p.dataVnd);
+    const n = nomeXml(k, ins);
+    if (!porXml.has(n)) porXml.set(n, []);
+    porXml.get(n).push([p.loja, data]);
+  }
+  const emFalta = [...porXml.keys()].filter(n => !ficheiros.has(n.toLowerCase()));
+  if (emFalta.length) throw new Error(`Faltam ${emFalta.length} XML (exporte-os do dSeries e carregue no passo 1):\n  ` + emFalta.join("\n  "));
+  const linhas = [], resultados = [];
+  for (const [n, lojasDatas] of porXml) {
+    const f = ficheiros.get(n.toLowerCase());
+    const app = new AppXML(f.nome, f.xml);
+    const r = adicionarLojas(app, lojasDatas);
+    linhas.push(...r.linhas);
+    if (r.novas.length) resultados.push({ nome: f.nome, xml: app.xml });
+  }
+  return { linhas, resultados };
+}
+// CORE-END
+
+/* ---------------------------------------------------------------- UI */
+const $ = id => document.getElementById(id);
+const ficheiros = new Map();
+const modificados = new Set();
+let pedidos = [];
+
+function msg(el, tipo, texto) {
+  el.hidden = !texto; el.className = "msg " + (tipo || ""); el.textContent = texto || "";
+}
+
+function insigniaDoFicheiro(nome) {
+  const m = nome.match(/_([A-Za-z]+)\.xml$/i);
+  return m ? m[1].toUpperCase() : "?";
+}
+
+function renderFicheiros() {
+  const box = $("files");
+  box.replaceChildren();
+  $("clearFiles").hidden = !ficheiros.size;
+  if (!ficheiros.size) {
+    const p = document.createElement("p"); p.className = "hint";
+    p.textContent = "Ainda não há XML carregados.";
+    box.append(p);
+  } else {
+    const grupos = {};
+    for (const f of ficheiros.values()) (grupos[insigniaDoFicheiro(f.nome)] ||= []).push(f.nome);
+    for (const ins of Object.keys(grupos).sort()) {
+      const g = document.createElement("div"); g.className = "ins-group";
+      const h = document.createElement("h3"); h.textContent = `${ins} · ${grupos[ins].length} XML`;
+      const c = document.createElement("div"); c.className = "chips";
+      for (const n of grupos[ins].sort()) {
+        const s = document.createElement("span");
+        s.className = "chip" + (modificados.has(n.toLowerCase()) ? " mod" : "");
+        s.title = modificados.has(n.toLowerCase()) ? "Já inclui as lojas do último ZIP gerado" : n;
+        s.textContent = n.replace(/^MFT_/, "").replace(/\.xml$/i, "");
+        c.append(s);
+      }
+      g.append(h, c); box.append(g);
+    }
+  }
+  marcarFluxos();
+}
+
+async function carregar(lista) {
+  const xs = [...lista].filter(f => /\.xml$/i.test(f.name));
+  for (const f of xs) {
+    ficheiros.set(f.name.toLowerCase(), { nome: f.name, xml: await f.text() });
+    modificados.delete(f.name.toLowerCase());
+  }
+  if (lista.length && !xs.length) msg($("runMsg"), "warn", "Só são aceites ficheiros .xml.");
+  renderFicheiros();
+}
+
+// fluxos
+function construirFluxos() {
+  for (const [k, , desc, tipo] of FLUXOS) {
+    const l = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = "fx_" + k; cb.value = k;
+    const t = document.createElement("span");
+    const kk = document.createElement("span"); kk.className = "k"; kk.textContent = k;
+    const miss = document.createElement("span"); miss.className = "miss"; miss.id = "miss_" + k;
+    t.append(kk, " – " + desc + " ", miss);
+    l.append(cb, t);
+    $(tipo === ARTIGOS ? "flowsArt" : "flowsVnd").append(l);
+  }
+}
+function aplicarInsignia() {
+  const ins = $("insignia").value;
+  for (const k of TODOS) $("fx_" + k).checked = INSIGNIAS[ins].includes(k);
+  marcarFluxos();
+}
+function marcarFluxos() {
+  const ins = $("insignia").value;
+  let falta = 0;
+  for (const k of TODOS) {
+    const existe = ficheiros.has(nomeXml(k, ins).toLowerCase());
+    $("miss_" + k).textContent = existe ? "" : "(XML em falta)";
+    if (!existe && $("fx_" + k).checked) falta++;
+  }
+  $("xmlHint").textContent = `XML desta insígnia: MFT_…_${ins}.xml` + (falta ? ` · ${falta} selecionado(s) sem XML carregado` : "");
+}
+
+// aceita dd/mm/aaaa (também com - ou .) ou aaaa-mm-dd
+function lerData(texto) {
+  const s = texto.trim();
+  if (!s) return null;
+  let m, y, mo, d;
+  if ((m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/))) { d = +m[1]; mo = +m[2]; y = +m[3]; }
+  else if ((m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else throw new Error(`Data inválida: “${s}”. Use dd/mm/aaaa.`);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) throw new Error(`Data inválida: “${s}”. Use dd/mm/aaaa.`);
+  return dt;
+}
+
+function atualizarVendas() {
+  let d = null;
+  try { d = lerData($("dvnd").value); } catch (e) { d = null; }
+  $("dvndOut").textContent = d ? `→ vendas arrancam a ${fmtPT(norunVendas(d))} (+1 dia)` : "";
+}
+
+function renderLista() {
+  const tb = $("tbody");
+  tb.replaceChildren();
+  if (!pedidos.length) {
+    const tr = document.createElement("tr"); const td = document.createElement("td");
+    td.colSpan = 7; td.className = "empty";
+    td.textContent = "Lista vazia. Indique a loja, a insígnia e as datas no passo 2 e clique em “Adicionar à lista”.";
+    tr.append(td); tb.append(tr); return;
+  }
+  pedidos.forEach((p, i) => {
+    const tr = document.createElement("tr");
+    const cells = [p.loja, p.insignia, fmtPT(p.dataArt), fmtPT(p.dataVnd), fmtPT(norunVendas(p.dataVnd)), p.fluxos.join(", ")];
+    cells.forEach((v, j) => { const td = document.createElement("td"); td.textContent = v; if (j === 5) td.className = "mono"; tr.append(td); });
+    const td = document.createElement("td");
+    const b = document.createElement("button"); b.type = "button"; b.className = "x"; b.textContent = "Remover";
+    b.setAttribute("aria-label", `Remover loja ${p.loja}`);
+    b.onclick = () => { pedidos.splice(i, 1); renderLista(); };
+    td.append(b); tr.append(td); tb.append(tr);
+  });
+}
+
+function adicionar(ev) {
+  ev.preventDefault();
+  const fm = $("formMsg");
+  try {
+    const toks = $("lojas").value.trim().split(/[\s,;]+/).filter(Boolean);
+    if (!toks.length) throw new Error("Indique pelo menos um n.º de loja.");
+    const lojas = [];
+    for (const t of toks) {
+      if (!/^\d+$/.test(t) || +t <= 0 || +t > 99999) throw new Error(`N.º de loja inválido: “${t}”.`);
+      if (!lojas.includes(+t)) lojas.push(+t);
+    }
+    const fluxos = TODOS.filter(k => $("fx_" + k).checked);
+    if (!fluxos.length) throw new Error("Selecione pelo menos um fluxo.");
+    const precisaArt = fluxos.some(k => FLUXO[k][3] === ARTIGOS);
+    const precisaVnd = fluxos.some(k => FLUXO[k][3] === VENDAS);
+    const dataArt = precisaArt ? lerData($("dart").value) : null;
+    const dataVnd = precisaVnd ? lerData($("dvnd").value) : null;
+    if (precisaArt && !dataArt) throw new Error("Indique a data de início de ART / INGREDIENTES / IMAGENS.");
+    if (precisaVnd && !dataVnd) throw new Error("Indique o 1.º dia de vendas.");
+    const avisos = [];
+    const hoje = new Date(); const hojeUTC = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    if (dataArt && dataArt.getTime() < hojeUTC) avisos.push(`a data de artigos (${fmtPT(dataArt)}) já passou`);
+    if (dataVnd && dataVnd.getTime() < hojeUTC) avisos.push(`o 1.º dia de vendas (${fmtPT(dataVnd)}) já passou`);
+    if (dataArt && dataVnd && dataVnd < dataArt) avisos.push("o 1.º dia de vendas é anterior à data de artigos");
+    const repetidas = [];
+    for (const loja of lojas) {
+      if (pedidos.some(p => p.loja === loja)) { repetidas.push(loja); continue; }
+      pedidos.push({ loja, insignia: $("insignia").value, dataArt, dataVnd, fluxos });
+    }
+    if (repetidas.length) avisos.push(`loja(s) ${repetidas.join(", ")} já estavam na lista`);
+    msg(fm, avisos.length ? "warn" : "ok", avisos.length ? "Adicionado. Atenção: " + avisos.join("; ") + "." : `Adicionada(s) ${lojas.length - repetidas.length} loja(s) à lista.`);
+    $("lojas").value = "";
+    $("lojas").focus();
+    renderLista();
+  } catch (e) { msg(fm, "err", e.message); }
+}
+
+function mostrarLog(linhas, rodape) {
+  const log = $("log");
+  log.replaceChildren();
+  for (const l of linhas) { const s = document.createElement("span"); s.className = l.t; s.textContent = l.s + "\n"; log.append(s); }
+  if (rodape) log.append("\n" + rodape);
+  log.hidden = false;
+}
+
+function relatorioTexto(linhas, resultados) {
+  const agora = new Date();
+  return [
+    `Aberturas de Lojas dSeries — ${agora.toLocaleString("pt-PT")}`,
+    "",
+    "Lojas:",
+    ...pedidos.map(p => `  ${p.loja} ${p.insignia} | artigos ${fmtPT(p.dataArt)} | 1.º dia vendas ${fmtPT(p.dataVnd)} -> vendas arrancam ${fmtPT(norunVendas(p.dataVnd))} | ${p.fluxos.join(", ")}`),
+    "",
+    ...linhas.map(l => l.s),
+    "",
+    `XML alterados (${resultados.length}):`,
+    ...resultados.map(r => "  " + r.nome),
+    "",
+  ].join("\r\n");
+}
+
+function correr() {
+  const rm = $("runMsg");
+  if (!pedidos.length) { msg(rm, "warn", "A lista está vazia: adicione pelo menos uma loja no passo 2."); return null; }
+  try {
+    return processar(pedidos, ficheiros);
+  } catch (e) {
+    msg(rm, "err", e.message + "\nNada foi gerado.");
+    rm.style.whiteSpace = "pre-line";
+    $("log").hidden = true;
+    return null;
+  }
+}
+
+$("preview").onclick = () => {
+  const r = correr(); if (!r) return;
+  mostrarLog(r.linhas, r.resultados.length ? `PRÉ-VISUALIZAÇÃO: ${r.resultados.length} XML seriam alterados.` : "Nada a alterar.");
+  msg($("runMsg"), r.resultados.length ? "ok" : "warn", r.resultados.length ? "Pré-visualização pronta. Nada foi gerado ainda." : "Todas as lojas já existem nos XML carregados.");
+};
+
+$("generate").onclick = async () => {
+  const r = correr(); if (!r) return;
+  const rm = $("runMsg");
+  if (!r.resultados.length) { mostrarLog(r.linhas, "Nada a alterar."); msg(rm, "warn", "Todas as lojas já existem nos XML carregados."); return; }
+  // No claude.ai usa a capability "downloads"; noutro alojamento (ex.: GitHub Pages) usa a descarga normal do browser.
+  const dentroClaude = typeof window.claude?.use === "function";
+  const downloads = dentroClaude ? await window.claude.use("downloads") : null;
+  if (dentroClaude && !downloads) { mostrarLog(r.linhas); msg(rm, "err", "Esta vista não permite descarregar ficheiros. Abra a página no claude.ai com sessão iniciada."); return; }
+  const btn = $("generate"); btn.disabled = true;
+  try {
+    const zip = new JSZip();
+    for (const f of r.resultados) zip.file(f.nome, f.xml);
+    zip.file("relatorio_aberturas.txt", relatorioTexto(r.linhas, r.resultados));
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}_${two(d.getHours())}${two(d.getMinutes())}`;
+    const lojas = pedidos.map(p => p.loja).join("-").slice(0, 60);
+    const filename = `aberturas_${lojas}_${stamp}.zip`;
+    if (downloads) {
+      await downloads.save({ filename, data: blob });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.hidden = true;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    for (const f of r.resultados) { ficheiros.set(f.nome.toLowerCase(), { nome: f.nome, xml: f.xml }); modificados.add(f.nome.toLowerCase()); }
+    mostrarLog(r.linhas, `ZIP gerado com ${r.resultados.length} XML + relatorio_aberturas.txt.`);
+    msg(rm, "ok", `ZIP descarregado com ${r.resultados.length} XML. Importe-os no dSeries. Os XML carregados nesta página já incluem estas lojas.`);
+    pedidos = []; renderLista(); renderFicheiros();
+  } catch (e) {
+    mostrarLog(r.linhas);
+    const t = { declined: "Descarga cancelada. Nada foi guardado.", rate_limited: "Já há um pedido de descarga aberto. Tente de novo dentro de momentos." }[e?.code];
+    msg(rm, "err", t || ("Não foi possível gerar o ZIP: " + (e?.message || e)));
+  } finally { btn.disabled = false; }
+};
+
+$("clearList").onclick = () => { pedidos = []; renderLista(); msg($("runMsg"), "", ""); $("log").hidden = true; };
+$("clearFiles").onclick = () => { ficheiros.clear(); modificados.clear(); renderFicheiros(); };
+$("pick").onclick = () => $("fileInput").click();
+$("fileInput").onchange = e => { carregar(e.target.files); e.target.value = ""; };
+const drop = $("drop");
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); carregar(e.dataTransfer.files); });
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => e.preventDefault());
+
+const sel = $("insignia");
+for (const ins of Object.keys(INSIGNIAS)) { const o = document.createElement("option"); o.value = o.textContent = ins; sel.append(o); }
+sel.onchange = aplicarInsignia;
+$("dvnd").oninput = atualizarVendas;
+$("form").addEventListener("submit", adicionar);
+construirFluxos(); aplicarInsignia(); renderFicheiros(); renderLista(); atualizarVendas();
+</script>
