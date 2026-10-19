@@ -1,3 +1,11 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
 <title>Aberturas de Lojas dSeries</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,8 +36,7 @@ header { display: grid; gap: 4px; }
 h1 { font-size: 1.6rem; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 header p { margin: 0; color: var(--muted); max-width: 70ch; }
 .mono { font-family: var(--font-mono); font-size: 0.86em; }
-.grid2 { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
-@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .step { display: flex; align-items: baseline; gap: 10px; }
 .step b { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); letter-spacing: 0.06em; }
@@ -55,12 +62,13 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .derived { font-size: 0.82rem; color: var(--ok); min-height: 1.2em; }
 fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 12px; margin: 0; min-width: 0; }
 legend { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
-.flows { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 14px; }
+.flows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 14px; }
+.flows label > span { min-width: 0; overflow-wrap: anywhere; }
 .flows label { display: flex; gap: 7px; align-items: flex-start; font-size: 0.86rem; }
 .flows label .k { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; }
 .flows label .miss { color: var(--bad); font-size: 0.76rem; }
 .flowcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
-@media (max-width: 620px) { .flowcols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .flowcols { grid-template-columns: minmax(0, 1fr); } }
 
 button { font: inherit; font-size: 0.92rem; font-weight: 500; border-radius: 4px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
@@ -118,11 +126,11 @@ pre.log { margin: 0; padding: 12px; background: var(--bg); border: 1px solid var
         </div>
         <div class="row">
           <label class="f" for="dart">Início ART / INGREDIENTES / IMAGENS
-            <input type="date" id="dart">
+            <input type="text" id="dart" placeholder="dd/mm/aaaa" inputmode="numeric" autocomplete="off">
             <span class="derived hint">data do email, aplicada tal e qual</span>
           </label>
           <label class="f" for="dvnd">1.º dia de vendas (do email)
-            <input type="date" id="dvnd">
+            <input type="text" id="dvnd" placeholder="dd/mm/aaaa" inputmode="numeric" autocomplete="off">
             <span class="derived" id="dvndOut"></span>
           </label>
         </div>
@@ -441,8 +449,22 @@ function marcarFluxos() {
   $("xmlHint").textContent = `XML desta insígnia: MFT_…_${ins}.xml` + (falta ? ` · ${falta} selecionado(s) sem XML carregado` : "");
 }
 
+// aceita dd/mm/aaaa (também com - ou .) ou aaaa-mm-dd
+function lerData(texto) {
+  const s = texto.trim();
+  if (!s) return null;
+  let m, y, mo, d;
+  if ((m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/))) { d = +m[1]; mo = +m[2]; y = +m[3]; }
+  else if ((m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else throw new Error(`Data inválida: “${s}”. Use dd/mm/aaaa.`);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) throw new Error(`Data inválida: “${s}”. Use dd/mm/aaaa.`);
+  return dt;
+}
+
 function atualizarVendas() {
-  const d = parseISO($("dvnd").value);
+  let d = null;
+  try { d = lerData($("dvnd").value); } catch (e) { d = null; }
   $("dvndOut").textContent = d ? `→ vendas arrancam a ${fmtPT(norunVendas(d))} (+1 dia)` : "";
 }
 
@@ -482,8 +504,8 @@ function adicionar(ev) {
     if (!fluxos.length) throw new Error("Selecione pelo menos um fluxo.");
     const precisaArt = fluxos.some(k => FLUXO[k][3] === ARTIGOS);
     const precisaVnd = fluxos.some(k => FLUXO[k][3] === VENDAS);
-    const dataArt = precisaArt ? parseISO($("dart").value) : null;
-    const dataVnd = precisaVnd ? parseISO($("dvnd").value) : null;
+    const dataArt = precisaArt ? lerData($("dart").value) : null;
+    const dataVnd = precisaVnd ? lerData($("dvnd").value) : null;
     if (precisaArt && !dataArt) throw new Error("Indique a data de início de ART / INGREDIENTES / IMAGENS.");
     if (precisaVnd && !dataVnd) throw new Error("Indique o 1.º dia de vendas.");
     const avisos = [];
@@ -551,8 +573,10 @@ $("generate").onclick = async () => {
   const r = correr(); if (!r) return;
   const rm = $("runMsg");
   if (!r.resultados.length) { mostrarLog(r.linhas, "Nada a alterar."); msg(rm, "warn", "Todas as lojas já existem nos XML carregados."); return; }
-  const downloads = await window.claude?.use?.("downloads");
-  if (!downloads) { mostrarLog(r.linhas); msg(rm, "err", "Esta vista não permite descarregar ficheiros. Abra a página no claude.ai com sessão iniciada."); return; }
+  // No claude.ai usa a capability "downloads"; noutro alojamento (ex.: GitHub Pages) usa a descarga normal do browser.
+  const dentroClaude = typeof window.claude?.use === "function";
+  const downloads = dentroClaude ? await window.claude.use("downloads") : null;
+  if (dentroClaude && !downloads) { mostrarLog(r.linhas); msg(rm, "err", "Esta vista não permite descarregar ficheiros. Abra a página no claude.ai com sessão iniciada."); return; }
   const btn = $("generate"); btn.disabled = true;
   try {
     const zip = new JSZip();
@@ -562,7 +586,16 @@ $("generate").onclick = async () => {
     const d = new Date();
     const stamp = `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}_${two(d.getHours())}${two(d.getMinutes())}`;
     const lojas = pedidos.map(p => p.loja).join("-").slice(0, 60);
-    await downloads.save({ filename: `aberturas_${lojas}_${stamp}.zip`, data: blob });
+    const filename = `aberturas_${lojas}_${stamp}.zip`;
+    if (downloads) {
+      await downloads.save({ filename, data: blob });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.hidden = true;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
     for (const f of r.resultados) { ficheiros.set(f.nome.toLowerCase(), { nome: f.nome, xml: f.xml }); modificados.add(f.nome.toLowerCase()); }
     mostrarLog(r.linhas, `ZIP gerado com ${r.resultados.length} XML + relatorio_aberturas.txt.`);
     msg(rm, "ok", `ZIP descarregado com ${r.resultados.length} XML. Importe-os no dSeries. Os XML carregados nesta página já incluem estas lojas.`);
@@ -592,3 +625,6 @@ $("dvnd").oninput = atualizarVendas;
 $("form").addEventListener("submit", adicionar);
 construirFluxos(); aplicarInsignia(); renderFicheiros(); renderLista(); atualizarVendas();
 </script>
+
+</body>
+</html>
